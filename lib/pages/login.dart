@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/pages/home.dart';
 
 import '../../widgets/cstm_textfield.dart';
 import '../widgets/cstm_button.dart';
+import '../widgets/cstm_loginswitcher.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,21 +14,18 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   final _loginFormKey = GlobalKey<FormState>();
-  late final AnimationController _controller;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this);
   }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _controller.dispose();
     super.dispose();
   }
 
@@ -46,6 +45,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 fontSize: 25,
                 fontWeight: FontWeight.w700,
               ),
+            ),
+            const SizedBox(
+              height: 20,
             ),
             Form(
               key: _loginFormKey,
@@ -67,7 +69,30 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       color: Colors.white,
                     ),
                     text: 'Log In',
-                    onPressed: () => {},
+                    onPressed: () => {
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const HomePage()))
+                    },
+                  ),
+                  Container(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => {
+                        // Navigator.of(context).push(
+                        //     animeService.createRoute(const ResetPass()))
+                      },
+                      child: const Text(
+                        'Forgot Password?',
+                        style: TextStyle(decoration: TextDecoration.underline),
+                      ),
+                    ),
+                  ),
+                  CstmLoginSwitcher(
+                    preText: 'New Here?',
+                    onpressed: () {},
+                    suffText: 'Sign Up',
                   ),
                 ],
               ),

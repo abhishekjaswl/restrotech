@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-class LoginSwitcher extends StatelessWidget {
+class CstmLoginSwitcher extends StatelessWidget {
   final String preText;
   final String suffText;
   final VoidCallback onpressed;
 
-  const LoginSwitcher({
+  const CstmLoginSwitcher({
     super.key,
     required this.preText,
     required this.suffText,
