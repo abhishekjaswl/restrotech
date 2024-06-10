@@ -14,15 +14,15 @@ class _CstmAppBarState extends State<CstmAppBar> {
   Widget build(BuildContext context) {
     return AppBar(
       leading: Padding(
-        padding: const EdgeInsets.only(top: 20),
+        padding: const EdgeInsets.only(left: 10),
         child: Builder(
           builder: (BuildContext context) {
             return Image.asset('assets/images/logo.png');
           },
         ),
       ),
-      titleSpacing: 0,
       elevation: 0,
+      leadingWidth: 70,
       toolbarHeight: 80,
     );
   }

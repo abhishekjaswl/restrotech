@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_app/pages/home.dart';
 
 import '../../widgets/cstm_textfield.dart';
 import '../widgets/cstm_button.dart';
@@ -69,12 +68,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       color: Colors.white,
                     ),
                     text: 'Log In',
-                    onPressed: () => {
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const HomePage()))
-                    },
+                    onPressed: () =>
+                        {Navigator.pushNamed(context, '/navigator')},
                   ),
                   Container(
                     alignment: Alignment.centerRight,
