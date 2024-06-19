@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:mobile_app/utils/config/config.dart';
+import 'package:mobile_app/widgets/cstm_textfield.dart';
+import 'package:provider/provider.dart';
 import 'dart:convert';
-import '../services/auth_service.dart';
+import '../providers/currentuser_provider.dart';
 import '../widgets/cstm_appbar.dart';
+import '../widgets/cstm_snackbar.dart';
 
 class MenuPage extends StatefulWidget {
   const MenuPage({super.key});
@@ -12,7 +16,6 @@ class MenuPage extends StatefulWidget {
 }
 
 class _MenuPageState extends State<MenuPage> {
-  final AuthService authService = AuthService();
   List<String> categories = [
     'All',
     'Starter',
@@ -33,22 +36,37 @@ class _MenuPageState extends State<MenuPage> {
   Future<void> fetchMenuItems() async {
     try {
       final response = await http.get(
-          Uri.parse('https://66670cb7a2f8516ff7a6169f.mockapi.io/restro/menu'));
-      if (response.statusCode == 200) {
-        List jsonResponse = json.decode(response.body);
+        Uri.parse(menu),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization':
+              'Bearer ${Provider.of<CurrentUser>(context, listen: false).token}',
+        },
+      );
+      var jsonResponse = json.decode(response.body);
+      print(jsonResponse);
+      if (jsonResponse['success']) {
         setState(() {
-          menuItems =
-              jsonResponse.map((item) => MenuItem.fromJson(item)).toList();
-          isLoading = false;
+          menuItems = jsonResponse['data'];
         });
       } else {
-        throw Exception('Failed to load menu items');
+        var jsonResponse = json.decode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          CstmSnackBar(
+            text: jsonResponse['message'],
+            type: 'error',
+          ),
+        );
       }
     } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
-      print(e);
+      ScaffoldMessenger.of(context).showSnackBar(
+        CstmSnackBar(
+          text: e.toString(),
+          type: 'error',
+        ),
+      );
+    } finally {
+      isLoading = false;
     }
   }
 
@@ -79,6 +97,17 @@ class _MenuPageState extends State<MenuPage> {
                 ],
               ),
             ),
+      floatingActionButton: FloatingActionButton.small(
+        onPressed: () => {
+          showModalBottomSheet<void>(
+            context: context,
+            builder: (BuildContext context) {
+              return const AddMenuItem();
+            },
+          )
+        },
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }
@@ -170,6 +199,7 @@ class MenuCard extends StatelessWidget {
           Image.network(
             menuItem.imageUrl,
             height: 100,
+            fit: BoxFit.cover,
           ),
           ListTile(
             title: Text(
@@ -226,6 +256,24 @@ class MenuItem {
       title: json['title'],
       category: json['category'],
       imageUrl: json['imageUrl'],
+    );
+  }
+}
+
+class AddMenuItem extends StatelessWidget {
+  const AddMenuItem({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        CstmTextField(text: 'Name', inputType: TextInputType.name),
+        CstmTextField(text: 'Description', inputType: TextInputType.name),
+        CstmTextField(text: 'Price', inputType: TextInputType.name),
+        CstmTextField(text: 'Category', inputType: TextInputType.name),
+        CstmTextField(text: 'Category', inputType: TextInputType.name),
+        CstmTextField(text: 'Category', inputType: TextInputType.name),
+      ],
     );
   }
 }

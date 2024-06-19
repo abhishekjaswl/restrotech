@@ -2,17 +2,13 @@ import 'package:flutter/material.dart';
 
 class CstmTextField extends StatefulWidget {
   final TextEditingController? mainController;
-  final TextEditingController? confirmController;
   final String text;
-  final IconData? prefixIcon;
   final TextInputType inputType;
 
   const CstmTextField({
     super.key,
     this.mainController,
-    this.confirmController,
     required this.text,
-    this.prefixIcon,
     required this.inputType,
   });
 
@@ -54,17 +50,14 @@ class _CstmTextFieldState extends State<CstmTextField> {
           filled: true,
           focusColor: Theme.of(context).colorScheme.tertiary,
           focusedBorder: OutlineInputBorder(
-              borderSide:
-                  BorderSide(color: Theme.of(context).colorScheme.tertiary)),
+            borderSide:
+                BorderSide(color: Theme.of(context).colorScheme.tertiary),
+            borderRadius: BorderRadius.circular(20),
+          ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(5),
+            borderRadius: BorderRadius.circular(20),
           ),
           contentPadding: const EdgeInsets.all(13),
-          prefixIcon: widget.prefixIcon != null
-              ? Icon(
-                  widget.prefixIcon,
-                )
-              : null,
           suffixIcon: isPassword()
               ? PassHider(
                   obscureCheck: _isPassword,
@@ -74,7 +67,7 @@ class _CstmTextFieldState extends State<CstmTextField> {
                     });
                   },
                 )
-              : Icon(_getSuffixIcon(widget.text)),
+              : null,
         ),
         validator: (value) {
           if (value == null || value.isEmpty) {
@@ -88,30 +81,10 @@ class _CstmTextFieldState extends State<CstmTextField> {
               widget.mainController!.text.length < 6) {
             return 'Password cannot be less than 6 characters.';
           }
-          if (widget.text == 'Confirm Password' &&
-              widget.mainController!.text != widget.confirmController!.text) {
-            return 'Password do not match.';
-          }
           return null;
         },
       ),
     );
-  }
-
-  IconData? _getSuffixIcon(String text) {
-    switch (text) {
-      case 'First Name':
-      case 'Last Name':
-        return Icons.person_outlined;
-      case 'Date of Birth':
-        return Icons.calendar_month_outlined;
-      case 'Email Address':
-        return Icons.mail_outline;
-      case 'Phone Number':
-        return Icons.phone_outlined;
-      default:
-        return null;
-    }
   }
 }
 
