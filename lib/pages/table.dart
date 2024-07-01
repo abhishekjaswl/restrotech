@@ -18,16 +18,16 @@ class TablePage extends StatefulWidget {
 }
 
 class _TablePageState extends State<TablePage> {
-  List menuItems = [];
+  List tables = [];
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    fetchMenuItems();
+    fetchTables();
   }
 
-  Future<void> fetchMenuItems() async {
+  Future<void> fetchTables() async {
     try {
       final response = await http.get(
         Uri.parse(table),
@@ -38,10 +38,9 @@ class _TablePageState extends State<TablePage> {
         },
       );
       var jsonResponse = json.decode(response.body);
-      print(jsonResponse);
       if (jsonResponse['success']) {
         setState(() {
-          menuItems = jsonResponse['data'];
+          tables = jsonResponse['data'];
         });
       } else {
         _showErrorSnackbar(jsonResponse['message']);
@@ -52,6 +51,47 @@ class _TablePageState extends State<TablePage> {
       setState(() {
         isLoading = false;
       });
+    }
+  }
+
+  Future<void> addTable(number, capacity) async {
+    context.read<IsLoadingData>().setIsLoading(true);
+    var regBody = {
+      'number': number,
+      'capacity': capacity,
+    };
+    try {
+      regBody.forEach((key, value) {
+        if (value == null || value.toString().isEmpty) {
+          throw ('Number and Capacity fields cannot be empty.');
+        }
+      });
+      final response = await http.post(
+        Uri.parse(table),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization':
+              'Bearer ${Provider.of<CurrentUser>(context, listen: false).token}',
+        },
+        body: jsonEncode(regBody),
+      );
+      var jsonResponse = json.decode(response.body);
+      if (jsonResponse['success']) {
+        fetchTables();
+        ScaffoldMessenger.of(context).showSnackBar(
+          CstmSnackBar(
+            text: jsonResponse['message'],
+            type: 'success',
+          ),
+        );
+      } else {
+        _showErrorSnackbar(jsonResponse['message']);
+      }
+    } catch (e) {
+      _showErrorSnackbar(e.toString());
+    } finally {
+      Navigator.pop(context);
+      context.read<IsLoadingData>().setIsLoading(false);
     }
   }
 
@@ -74,25 +114,39 @@ class _TablePageState extends State<TablePage> {
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 4,
-                  mainAxisSpacing: 4,
-                  mainAxisExtent: 250,
-                ),
-                itemBuilder: (_, index) => MenuCard(menuItem: menuItems[index]),
-                itemCount: menuItems.length,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Table List',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                  ),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 4,
+                      mainAxisSpacing: 4,
+                      mainAxisExtent: 230,
+                    ),
+                    itemCount: tables.length,
+                    itemBuilder: (_, index) =>
+                        TableCard(tableItem: tables[index]),
+                  ),
+                ],
               ),
             ),
       floatingActionButton: FloatingActionButton.small(
         onPressed: () => {
           showModalBottomSheet<void>(
             context: context,
+            isScrollControlled: true,
             builder: (BuildContext context) {
-              return const AddMenuItem();
+              return AddTable(
+                callback: addTable,
+              );
             },
           )
         },
@@ -102,80 +156,127 @@ class _TablePageState extends State<TablePage> {
   }
 }
 
-class MenuCard extends StatelessWidget {
-  final menuItem;
-  const MenuCard({super.key, required this.menuItem});
+class TableCard extends StatelessWidget {
+  final tableItem;
+  const TableCard({super.key, required this.tableItem});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Image.asset(
-            'assets/images/table.png',
-            height: 100,
-          ),
-          ListTile(
-            title: Text(
-              menuItem['number'].toString(),
+    return GestureDetector(
+      onTap: () => {
+        if (tableItem['status'] == 'available')
+          {
+            showModalBottomSheet<void>(
+              context: context,
+              builder: (BuildContext context) {
+                return AddGuest(
+                  tableItem: tableItem,
+                );
+              },
             ),
-            subtitle: Text(
-              'Capacity: ${menuItem['capacity'].toString()}',
+          }
+      },
+      child: Card(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Image.asset(
+                'assets/images/table.png',
+                height: 110,
+              ),
             ),
-          ),
-          ButtonBar(
-            alignment: MainAxisAlignment.spaceBetween,
-            children: [
-              TextButton(
-                onPressed: () {
-                  // Perform some action
-                },
-                child: const Icon(Icons.add),
+            Text(tableItem['status'].toString().toUpperCase()),
+            ListTile(
+              title: Text(
+                'Table ${tableItem['number'].toString()}',
+                style: const TextStyle(fontSize: 18),
               ),
-              const Text(
-                '4',
-                textScaleFactor: 2,
+              subtitle: Text(
+                'Capacity: ${tableItem['capacity'].toString()}',
               ),
-              TextButton(
-                onPressed: () {
-                  // Perform some action
-                },
-                child: const Icon(Icons.remove),
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class AddMenuItem extends StatefulWidget {
-  const AddMenuItem({super.key});
+class AddTable extends StatelessWidget {
+  final Function callback;
+  AddTable({super.key, required this.callback});
 
-  @override
-  State<AddMenuItem> createState() => _AddMenuItemState();
-}
-
-class _AddMenuItemState extends State<AddMenuItem> {
   final TextEditingController _numberController = TextEditingController();
   final TextEditingController _capacityController = TextEditingController();
 
-  Future<void> addTable() async {
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      expand: false,
+      builder: (context, scrollController) {
+        return SingleChildScrollView(
+          controller: scrollController,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Add Table',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+                ),
+                CstmTextField(
+                  text: 'Number',
+                  inputType: TextInputType.number,
+                  mainController: _numberController,
+                ),
+                CstmTextField(
+                  text: 'Capacity',
+                  inputType: TextInputType.number,
+                  mainController: _capacityController,
+                ),
+                CstmButton(
+                    text: 'Add',
+                    onPressed: () => callback(
+                          _numberController.text.trim(),
+                          _capacityController.text.trim(),
+                        )),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class AddGuest extends StatefulWidget {
+  final tableItem;
+  const AddGuest({super.key, required this.tableItem});
+
+  @override
+  State<AddGuest> createState() => _AddGuestState();
+}
+
+class _AddGuestState extends State<AddGuest> {
+  late int guestCount = int.parse(widget.tableItem['capacity']);
+  late int guestCapacity = int.parse(widget.tableItem['capacity']);
+
+  Future<void> addGuest() async {
     context.read<IsLoadingData>().setIsLoading(true);
-    var regBody = {
-      'number': _numberController.text.trim(),
-      'capacity': _capacityController.text.trim(),
-    };
+    var regBody = {};
     try {
-      final response = await http.post(Uri.parse(table),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization':
-                'Bearer ${Provider.of<CurrentUser>(context, listen: false).token}',
-          },
-          body: jsonEncode(regBody));
+      final response = await http.post(
+        Uri.parse(table),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization':
+              'Bearer ${Provider.of<CurrentUser>(context, listen: false).token}',
+        },
+        body: jsonEncode(regBody),
+      );
       var jsonResponse = json.decode(response.body);
       if (jsonResponse['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -210,21 +311,48 @@ class _AddMenuItemState extends State<AddMenuItem> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          Text(
+            'Table ${widget.tableItem['number'].toString()}',
+            style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w500),
+          ),
+          Image.asset(
+            'assets/images/table.png',
+            height: 150,
+          ),
           const Text(
-            'Add Table',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+            'Guests:',
+            style: TextStyle(fontSize: 18),
           ),
-          CstmTextField(
-            text: 'Number',
-            inputType: TextInputType.number,
-            mainController: _numberController,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              TextButton(
+                onPressed: () {
+                  if (guestCount != 1) {
+                    setState(() {
+                      guestCount--;
+                    });
+                  }
+                },
+                child: const Icon(Icons.remove),
+              ),
+              Text(
+                guestCount.toString(),
+                textScaleFactor: 2,
+              ),
+              TextButton(
+                onPressed: () {
+                  if (guestCount < guestCapacity) {
+                    setState(() {
+                      guestCount++;
+                    });
+                  }
+                },
+                child: const Icon(Icons.add),
+              ),
+            ],
           ),
-          CstmTextField(
-            text: 'Capacity',
-            inputType: TextInputType.number,
-            mainController: _capacityController,
-          ),
-          CstmButton(text: 'Add', onPressed: () => addTable())
+          CstmButton(text: 'Select and continue', onPressed: () => addGuest()),
         ],
       ),
     );

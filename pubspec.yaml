@@ -38,6 +38,7 @@ dependencies:
   provider: ^6.1.2
   http: ^1.1.0
   avatars: ^3.0.2
+  image_picker: ^0.8.4+4
 
 dev_dependencies:
   flutter_test:

@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:mobile_app/utils/config/config.dart';
+import 'package:mobile_app/widgets/cstm_button.dart';
 import 'package:mobile_app/widgets/cstm_textfield.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
 import '../providers/currentuser_provider.dart';
+import '../providers/loading.dart';
 import '../widgets/cstm_appbar.dart';
 import '../widgets/cstm_snackbar.dart';
 
@@ -24,7 +29,7 @@ class _MenuPageState extends State<MenuPage> {
     'Dessert'
   ];
   String selectedCategory = 'All';
-  List<MenuItem> menuItems = [];
+  List menuItems = [];
   bool isLoading = true;
 
   @override
@@ -44,7 +49,6 @@ class _MenuPageState extends State<MenuPage> {
         },
       );
       var jsonResponse = json.decode(response.body);
-      print(jsonResponse);
       if (jsonResponse['success']) {
         setState(() {
           menuItems = jsonResponse['data'];
@@ -67,6 +71,73 @@ class _MenuPageState extends State<MenuPage> {
       );
     } finally {
       isLoading = false;
+    }
+  }
+
+  Future<void> createMenuWithPhoto(
+    String name,
+    String description,
+    String price,
+    String category,
+    String estimatedTime,
+    XFile photo,
+  ) async {
+    context.read<IsLoadingData>().setIsLoading(true);
+    final Map<String, String> headers = {
+      'Content-Type': 'application/json',
+      'Authorization':
+          'Bearer ${Provider.of<CurrentUser>(context, listen: false).token}',
+    };
+
+    try {
+      final request = http.MultipartRequest('POST', Uri.parse(menu))
+        ..headers.addAll(headers)
+        ..fields['name'] = name
+        ..fields['description'] = description
+        ..fields['price'] = price.toString()
+        ..fields['category'] = category
+        ..fields['estimatedTime'] = estimatedTime
+        ..files.add(await http.MultipartFile.fromPath('file', photo.path));
+
+      final response = await request.send();
+
+      if (response.statusCode == 200) {
+        final responseData = await http.Response.fromStream(response);
+        final data = json.decode(responseData.body);
+        if (data['success']) {
+          fetchMenuItems();
+          ScaffoldMessenger.of(context).showSnackBar(
+            CstmSnackBar(
+              text: data['message'],
+              type: 'success',
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            CstmSnackBar(
+              text: data['message'],
+              type: 'error',
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          CstmSnackBar(
+            text: response.reasonPhrase!,
+            type: 'error',
+          ),
+        );
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        CstmSnackBar(
+          text: error.toString(),
+          type: 'error',
+        ),
+      );
+    } finally {
+      Navigator.pop(context);
+      context.read<IsLoadingData>().setIsLoading(false);
     }
   }
 
@@ -100,9 +171,12 @@ class _MenuPageState extends State<MenuPage> {
       floatingActionButton: FloatingActionButton.small(
         onPressed: () => {
           showModalBottomSheet<void>(
+            isScrollControlled: true,
             context: context,
             builder: (BuildContext context) {
-              return const AddMenuItem();
+              return AddMenuItem(
+                callback: createMenuWithPhoto,
+              );
             },
           )
         },
@@ -164,7 +238,7 @@ class CategoryList extends StatelessWidget {
 }
 
 class MenuGrid extends StatelessWidget {
-  final List<MenuItem> menuItems;
+  final List menuItems;
 
   const MenuGrid({Key? key, required this.menuItems}) : super(key: key);
 
@@ -177,7 +251,7 @@ class MenuGrid extends StatelessWidget {
         crossAxisCount: 2,
         crossAxisSpacing: 4,
         mainAxisSpacing: 4,
-        mainAxisExtent: 250,
+        mainAxisExtent: 200,
       ),
       itemBuilder: (_, index) => MenuCard(menuItem: menuItems[index]),
       itemCount: menuItems.length,
@@ -186,9 +260,16 @@ class MenuGrid extends StatelessWidget {
 }
 
 class MenuCard extends StatelessWidget {
-  final MenuItem menuItem;
+  final menuItem;
 
   const MenuCard({super.key, required this.menuItem});
+
+  String getImageUrl() {
+    String imageUrl = menuItem['photo'];
+    int index = imageUrl.indexOf("localhost:8000/") + "localhost:8000/".length;
+    String fileName = imageUrl.substring(index);
+    return url + fileName;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -197,83 +278,151 @@ class MenuCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Image.network(
-            menuItem.imageUrl,
+            getImageUrl(),
             height: 100,
-            fit: BoxFit.cover,
+            fit: BoxFit.fitWidth,
           ),
           ListTile(
             title: Text(
-              menuItem.title,
+              menuItem['name'],
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text(
-              'Category: ${menuItem.category}',
+              'Category: ${menuItem['category']}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          ButtonBar(
-            alignment: MainAxisAlignment.spaceBetween,
-            children: [
-              TextButton(
-                onPressed: () {
-                  // Perform some action
-                },
-                child: const Icon(Icons.add),
-              ),
-              const Text(
-                '4',
-                textScaleFactor: 2,
-              ),
-              TextButton(
-                onPressed: () {
-                  // Perform some action
-                },
-                child: const Icon(Icons.remove),
-              ),
-            ],
-          ),
+          // ButtonBar(
+          //   alignment: MainAxisAlignment.spaceBetween,
+          //   children: [
+          //     TextButton(
+          //       onPressed: () {
+          //         // Perform some action
+          //       },
+          //       child: const Icon(Icons.add),
+          //     ),
+          //     const Text(
+          //       '4',
+          //       textScaleFactor: 2,
+          //     ),
+          //     TextButton(
+          //       onPressed: () {
+          //         // Perform some action
+          //       },
+          //       child: const Icon(Icons.remove),
+          //     ),
+          //   ],
+          // ),
         ],
       ),
     );
   }
 }
 
-class MenuItem {
-  final String title;
-  final String category;
-  final String imageUrl;
+class AddMenuItem extends StatefulWidget {
+  final Function callback;
+  const AddMenuItem({super.key, required this.callback});
 
-  MenuItem({
-    required this.title,
-    required this.category,
-    required this.imageUrl,
-  });
-
-  factory MenuItem.fromJson(Map<String, dynamic> json) {
-    return MenuItem(
-      title: json['title'],
-      category: json['category'],
-      imageUrl: json['imageUrl'],
-    );
-  }
+  @override
+  State<AddMenuItem> createState() => _AddMenuItemState();
 }
 
-class AddMenuItem extends StatelessWidget {
-  const AddMenuItem({super.key});
+class _AddMenuItemState extends State<AddMenuItem> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _priceController = TextEditingController();
+  final TextEditingController _categoryController = TextEditingController();
+  final TextEditingController _timeController = TextEditingController();
+  XFile? _photo;
+
+  Future<XFile?> pickImage() async {
+    final ImagePicker _picker = ImagePicker();
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    return image;
+  }
+
+  void _pickImage() async {
+    final image = await pickImage();
+    setState(() {
+      _photo = image;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        CstmTextField(text: 'Name', inputType: TextInputType.name),
-        CstmTextField(text: 'Description', inputType: TextInputType.name),
-        CstmTextField(text: 'Price', inputType: TextInputType.name),
-        CstmTextField(text: 'Category', inputType: TextInputType.name),
-        CstmTextField(text: 'Category', inputType: TextInputType.name),
-        CstmTextField(text: 'Category', inputType: TextInputType.name),
-      ],
+    return DraggableScrollableSheet(
+      expand: false,
+      builder: (context, scrollController) {
+        return SingleChildScrollView(
+          controller: scrollController,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              children: [
+                const Text(
+                  'Add Menu Item',
+                  style: TextStyle(fontSize: 25),
+                ),
+                ElevatedButton(
+                  onPressed: _pickImage,
+                  child: const Text('Pick Image'),
+                ),
+                if (_photo != null) Image.file(File(_photo!.path)),
+                CstmTextField(
+                  text: 'Name',
+                  inputType: TextInputType.text,
+                  mainController: _nameController,
+                ),
+                CstmTextField(
+                  text: 'Description',
+                  inputType: TextInputType.text,
+                  mainController: _descriptionController,
+                ),
+                CstmTextField(
+                  text: 'Price',
+                  inputType: TextInputType.number,
+                  mainController: _priceController,
+                ),
+                CstmTextField(
+                  text: 'Category',
+                  inputType: TextInputType.text,
+                  mainController: _categoryController,
+                ),
+                CstmTextField(
+                  text: 'Estimate Time',
+                  inputType: TextInputType.number,
+                  mainController: _timeController,
+                ),
+                CstmButton(
+                  text: 'Add',
+                  onPressed: () => {
+                    if (_nameController.text.trim().isEmpty ||
+                        _descriptionController.text.trim().isEmpty ||
+                        _priceController.text.trim().isEmpty ||
+                        _categoryController.text.trim().isEmpty ||
+                        _timeController.text.trim().isEmpty ||
+                        _photo == null)
+                      {}
+                    else
+                      {
+                        widget.callback(
+                          _nameController.text.trim(),
+                          _descriptionController.text.trim(),
+                          _priceController.text.trim(),
+                          _categoryController.text.trim(),
+                          _timeController.text.trim(),
+                          _photo,
+                        ),
+                      }
+                  },
+                )
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
